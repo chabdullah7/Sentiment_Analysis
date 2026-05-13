@@ -10,65 +10,44 @@ import time
 import string
 import re
 import warnings
-import dagshub
 
 from dotenv import load_dotenv
-
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import stopwords
 
 from prometheus_client import (
-    Counter,
-    Histogram,
     generate_latest,
     CollectorRegistry,
     CONTENT_TYPE_LATEST
 )
 
 load_dotenv()
-
-warnings.simplefilter("ignore", UserWarning)
 warnings.filterwarnings("ignore")
 
-
-# =========================================================
+# =========================
 # TEXT PREPROCESSING
-# =========================================================
+# =========================
 
 def lemmatization(text):
     lemmatizer = WordNetLemmatizer()
-    text = text.split()
-    text = [lemmatizer.lemmatize(word) for word in text]
-    return " ".join(text)
-
+    return " ".join([lemmatizer.lemmatize(w) for w in text.split()])
 
 def remove_stop_words(text):
     stop_words = set(stopwords.words("english"))
-    text = [word for word in str(text).split() if word not in stop_words]
-    return " ".join(text)
-
+    return " ".join([w for w in str(text).split() if w not in stop_words])
 
 def removing_numbers(text):
-    return ''.join([char for char in text if not char.isdigit()])
-
+    return ''.join([c for c in text if not c.isdigit()])
 
 def lower_case(text):
-    text = text.split()
-    text = [word.lower() for word in text]
-    return " ".join(text)
-
+    return " ".join([w.lower() for w in text.split()])
 
 def removing_punctuations(text):
-    text = re.sub(r'[%s]' % re.escape(string.punctuation), ' ', text)
-    text = text.replace('؛', "")
-    text = re.sub(r'\s+', ' ', text).strip()
-    return text
-
+    text = re.sub(r'[^\w\s]', ' ', text)
+    return re.sub(r'\s+', ' ', text).strip()
 
 def removing_urls(text):
-    url_pattern = re.compile(r'https?://\S+|www\.\S+')
-    return url_pattern.sub(r'', text)
-
+    return re.sub(r'https?://\S+|www\.\S+', '', text)
 
 def normalize_text(text):
     text = lower_case(text)
@@ -80,206 +59,91 @@ def normalize_text(text):
     return text
 
 
-# =========================================================
-# LOCAL MODE
-# =========================================================
-
-# REPO_OWNER = os.getenv("REPO_OWNER")
-# REPO_NAME = os.getenv("REPO_NAME")
-# MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
-# DAGSHUB_TOKEN = os.getenv("DAGSHUB_TOKEN")
-
-# if MLFLOW_TRACKING_URI:
-#     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-
-# if REPO_OWNER and REPO_NAME:
-#     dagshub.init(
-#         repo_owner=REPO_OWNER,
-#         repo_name=REPO_NAME,
-#         mlflow=True
-#     )
-
-
-# =========================================================
-# PRODUCTION / REMOTE MODe
-# =========================================================
+# =========================
+# ENV CHECK
+# =========================
 
 DAGSHUB_TOKEN = os.getenv("DAGSHUB_TOKEN")
 REPO_OWNER = os.getenv("REPO_OWNER")
 REPO_NAME = os.getenv("REPO_NAME")
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
 
-if not DAGSHUB_TOKEN:
-    raise EnvironmentError("DAGSHUB_TOKEN is not set")
-
-if not REPO_OWNER or not REPO_NAME:
-    raise EnvironmentError("REPO_OWNER or REPO_NAME is not set")
-
-if not MLFLOW_TRACKING_URI:
-    raise EnvironmentError("MLFLOW_TRACKING_URI is not set")
+if not DAGSHUB_TOKEN or not REPO_OWNER or not REPO_NAME or not MLFLOW_TRACKING_URI:
+    raise EnvironmentError("Missing environment variables")
 
 os.environ["MLFLOW_TRACKING_USERNAME"] = REPO_OWNER
 os.environ["MLFLOW_TRACKING_PASSWORD"] = DAGSHUB_TOKEN
-
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
-
-# =========================================================
+# =========================
 # FASTAPI APP
-# =========================================================
+# =========================
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
-
-# =========================================================
-# PROMETHEUS METRICS (COMMENTED - SAFE)
-# =========================================================
-
 registry = CollectorRegistry()
 
-# REQUEST_COUNT = Counter(
-#     "app_request_count",
-#     "Total number of requests",
-#     ["method", "endpoint"],
-#     registry=registry
-# )
+# =========================
+# LAZY MODEL LOADING (IMPORTANT FIX)
+# =========================
 
-# REQUEST_LATENCY = Histogram(
-#     "app_request_latency_seconds",
-#     "Latency of requests",
-#     ["endpoint"],
-#     registry=registry
-# )
+model = None
+vectorizer = None
 
-# PREDICTION_COUNT = Counter(
-#     "model_prediction_count",
-#     "Prediction count",
-#     ["prediction"],
-#     registry=registry
-# )
+def load_model_and_vectorizer():
+    global model, vectorizer
 
+    if model is None:
+        client = mlflow.MlflowClient()
+        versions = client.get_latest_versions("my_model", stages=["Production"])
+        version = versions[0].version if versions else "1"
 
-# =========================================================
-# LOAD MODEL
-# =========================================================
+        model_uri = f"models:/my_model/{version}"
+        model = mlflow.pyfunc.load_model(model_uri)
 
-model_name = "my_model"
+    if vectorizer is None:
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        path = os.path.join(base_dir, "models", "vectorizer.pkl")
+        vectorizer = pickle.load(open(path, "rb"))
+
+    return model, vectorizer
 
 
-def get_latest_model_version(model_name):
-
-    client = mlflow.MlflowClient()
-
-    latest_version = client.get_latest_versions(
-        model_name,
-        stages=["Production"]
-    )
-
-    if not latest_version:
-        latest_version = client.get_latest_versions(
-            model_name,
-            stages=["None"]
-        )
-
-    return latest_version[0].version if latest_version else None
-
-
-model_version = get_latest_model_version(model_name)
-
-model_uri = f"models:/{model_name}/{model_version}"
-
-print(f"Fetching model from: {model_uri}")
-
-model = mlflow.pyfunc.load_model(model_uri)
-
-
-# =========================================================
-# FIXED VECTORIZER PATH
-# =========================================================
-
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-vectorizer_path = os.path.join(BASE_DIR, "models", "vectorizer.pkl")
-
-vectorizer = pickle.load(open(vectorizer_path, "rb"))
-
-
-# =========================================================
+# =========================
 # ROUTES
-# =========================================================
+# =========================
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-
-    # REQUEST_COUNT.labels(method="GET", endpoint="/").inc()
-
-    start_time = time.time()
-
-    response = templates.TemplateResponse(
+    return templates.TemplateResponse(
         "index.html",
-        {
-            "request": request,
-            "result": None
-        }
+        {"request": request, "result": None}
     )
-
-    # REQUEST_LATENCY.labels(endpoint="/").observe(time.time() - start_time)
-
-    return response
 
 
 @app.post("/predict", response_class=HTMLResponse)
 async def predict(request: Request, text: str = Form(...)):
 
-    # REQUEST_COUNT.labels(method="POST", endpoint="/predict").inc()
-
-    start_time = time.time()
+    model, vectorizer = load_model_and_vectorizer()
 
     text = normalize_text(text)
-
     features = vectorizer.transform([text])
 
-    features_df = pd.DataFrame(
-        features.toarray(),
-        columns=[str(i) for i in range(features.shape[1])]
-    )
+    df = pd.DataFrame(features.toarray())
 
-    result = model.predict(features_df)
+    result = model.predict(df)
     prediction = int(result[0])
-
-    # PREDICTION_COUNT.labels(prediction=str(prediction)).inc()
-    # REQUEST_LATENCY.labels(endpoint="/predict").observe(time.time() - start_time)
 
     return templates.TemplateResponse(
         "index.html",
-        {
-            "request": request,
-            "result": prediction
-        }
+        {"request": request, "result": prediction}
     )
 
 
 @app.get("/metrics")
 async def metrics():
-
     return Response(
         content=generate_latest(registry),
         media_type=CONTENT_TYPE_LATEST
-    )
-
-
-# =========================================================
-# MAIN
-# =========================================================
-
-if __name__ == "__main__":
-
-    import uvicorn
-
-    uvicorn.run(
-        "app:app",
-        host="0.0.0.0",
-        port=5000,
-        reload=True
     )
