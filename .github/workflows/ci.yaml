@@ -43,6 +43,9 @@ jobs:
           DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          REPO_OWNER: chabdullah7
+          REPO_NAME: Sentiment_Analysis
+          MLFLOW_TRACKING_URI: https://dagshub.com/chabdullah7/Sentiment_Analysis.mlflow
         run: |
           dvc repro
 
