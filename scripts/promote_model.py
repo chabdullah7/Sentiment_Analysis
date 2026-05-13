@@ -33,14 +33,12 @@ def promote_model():
     if not versions:
         raise ValueError("No model exists in registry")
 
-    # latest version (safe conversion)
+    
     latest = max(versions, key=lambda v: int(v.version))
 
     print("Latest model version:", latest.version)
 
-    # =========================
-    # NEW WAY (NO DEPRECATED STAGES)
-    # =========================
+    
     client.set_registered_model_alias(
         name=model_name,
         alias="production",

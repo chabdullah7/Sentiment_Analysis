@@ -28,7 +28,7 @@ jobs:
           python-version: '3.10'
 
       # =========================
-      # Cache pip (OPTIMIZED)
+      # Cache pip 
       # =========================
       - name: Cache pip dependencies
         uses: actions/cache@v3
@@ -46,7 +46,7 @@ jobs:
           pip install dvc[s3]
 
       # =========================
-      # ENV VARIABLES (IMPORTANT FIX)
+      # ENV VARIABLES
       # =========================
       - name: Set environment variables
         run: |
@@ -66,14 +66,14 @@ jobs:
           dvc repro
 
       # =========================
-      # Run tests (IMPORTANT FIX)
+      # Run tests
       # =========================
       - name: Run tests
         run: |
           python -m unittest discover -s tests -p "test_*.py"
 
       # =========================
-      # Promote model (SAFE)
+      # Promote model
       # =========================
       - name: Promote model to production
         if: success()

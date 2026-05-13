@@ -2,7 +2,7 @@ import sys
 import os
 
 # =========================================================
-# FIX: allow "src" imports in DVC / CI / local
+# allow "src" imports in DVC / CI / local
 # =========================================================
 sys.path.append(
     os.path.abspath(
