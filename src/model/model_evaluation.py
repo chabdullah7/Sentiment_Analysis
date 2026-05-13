@@ -1,8 +1,16 @@
+import sys
+import os
+
+sys.path.append(
+    os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../..")
+    )
+)
+
 import numpy as np
 import pandas as pd
 import pickle
 import json
-import os
 
 from sklearn.metrics import (
     accuracy_score,
@@ -39,7 +47,7 @@ load_dotenv()
 
 
 # =========================================================
-# PRODUCTION MODE (COMMENTED)
+# PRODUCTION MODE
 # =========================================================
 
 dagshub_token = os.getenv("DAGSHUB_TOKEN")
@@ -65,10 +73,9 @@ mlflow.set_tracking_uri(
 # =========================================================
 
 def load_model(file_path: str):
-    """
-    Load trained model.
-    """
+
     try:
+
         with open(file_path, "rb") as file:
             model = pickle.load(file)
 
@@ -77,15 +84,15 @@ def load_model(file_path: str):
         return model
 
     except Exception as e:
+
         logger.error(f"Error loading model: {e}")
         raise
 
 
 def load_data(file_path: str):
-    """
-    Load CSV data.
-    """
+
     try:
+
         df = pd.read_csv(file_path)
 
         logger.info(f"Data loaded from {file_path}")
@@ -93,15 +100,15 @@ def load_data(file_path: str):
         return df
 
     except Exception as e:
+
         logger.error(f"Error loading data: {e}")
         raise
 
 
 def evaluate_model(model, X_test, y_test):
-    """
-    Evaluate model performance.
-    """
+
     try:
+
         y_pred = model.predict(X_test)
         y_proba = model.predict_proba(X_test)[:, 1]
 
@@ -117,16 +124,19 @@ def evaluate_model(model, X_test, y_test):
         return metrics
 
     except Exception as e:
+
         logger.error(f"Evaluation error: {e}")
         raise
 
 
 def save_metrics(metrics, path):
-    """
-    Save metrics locally.
-    """
+
     try:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+
+        os.makedirs(
+            os.path.dirname(path),
+            exist_ok=True
+        )
 
         with open(path, "w") as f:
             json.dump(metrics, f, indent=4)
@@ -134,16 +144,19 @@ def save_metrics(metrics, path):
         logger.info(f"Metrics saved to {path}")
 
     except Exception as e:
+
         logger.error(f"Error saving metrics: {e}")
         raise
 
 
 def save_model_info(run_id, model_uri, path):
-    """
-    Save MLflow run information.
-    """
+
     try:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+
+        os.makedirs(
+            os.path.dirname(path),
+            exist_ok=True
+        )
 
         model_info = {
             "run_id": run_id,
@@ -156,6 +169,7 @@ def save_model_info(run_id, model_uri, path):
         logger.info(f"Model info saved to {path}")
 
     except Exception as e:
+
         logger.error(f"Error saving model info: {e}")
         raise
 
@@ -168,7 +182,9 @@ def main():
 
     try:
 
-        mlflow.set_experiment("my-dvc-pipeline")
+        mlflow.set_experiment(
+            "my-dvc-pipeline"
+        )
 
         with mlflow.start_run() as run:
 
@@ -176,7 +192,9 @@ def main():
             # LOAD MODEL + DATA
             # =====================================================
 
-            model = load_model("./models/model.pkl")
+            model = load_model(
+                "./models/model.pkl"
+            )
 
             test_data = load_data(
                 "./data/processed/test_bow.csv"
@@ -196,7 +214,7 @@ def main():
             )
 
             # =====================================================
-            # SAVE METRICS LOCALLY
+            # SAVE METRICS
             # =====================================================
 
             save_metrics(
@@ -205,7 +223,7 @@ def main():
             )
 
             # =====================================================
-            # LOG METRICS TO MLFLOW
+            # LOG METRICS
             # =====================================================
 
             for metric_name, metric_value in metrics.items():
@@ -216,7 +234,7 @@ def main():
                 )
 
             # =====================================================
-            # LOG MODEL PARAMETERS
+            # LOG PARAMETERS
             # =====================================================
 
             if hasattr(model, "get_params"):
@@ -229,7 +247,7 @@ def main():
                     )
 
             # =====================================================
-            # LOG MODEL TO MLFLOW
+            # LOG MODEL
             # =====================================================
 
             model_info = mlflow.sklearn.log_model(
@@ -237,7 +255,9 @@ def main():
                 name="model"
             )
 
-            logger.info("Model logged to MLflow successfully")
+            logger.info(
+                "Model logged to MLflow successfully"
+            )
 
             # =====================================================
             # SAVE MODEL INFO

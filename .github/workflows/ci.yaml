@@ -28,18 +28,16 @@ jobs:
           python-version: '3.10'
 
       # =========================
-      # Cache pip
+      # Cache pip (OPTIMIZED)
       # =========================
       - name: Cache pip dependencies
         uses: actions/cache@v3
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
 
       # =========================
-      # Install dependencies (clean)
+      # Install dependencies
       # =========================
       - name: Install dependencies
         run: |
@@ -48,7 +46,7 @@ jobs:
           pip install dvc[s3]
 
       # =========================
-      # Set environment (IMPORTANT FIX)
+      # ENV VARIABLES (IMPORTANT FIX)
       # =========================
       - name: Set environment variables
         run: |
@@ -68,14 +66,14 @@ jobs:
           dvc repro
 
       # =========================
-      # Run tests (SAFE IMPORT FIX)
+      # Run tests (IMPORTANT FIX)
       # =========================
-      - name: Run FastAPI tests
+      - name: Run tests
         run: |
-          python -m unittest discover -s tests -p "*.py"
+          python -m unittest discover -s tests -p "test_*.py"
 
       # =========================
-      # Promote model
+      # Promote model (SAFE)
       # =========================
       - name: Promote model to production
         if: success()
