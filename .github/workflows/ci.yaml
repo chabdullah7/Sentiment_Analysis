@@ -39,6 +39,7 @@ jobs:
       # =========================
       - name: Run DVC Pipeline
         env:
+          PYTHONPATH: ${{ github.workspace }}
           DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -50,6 +51,7 @@ jobs:
       # =========================
       - name: Run FastAPI tests
         env:
+          PYTHONPATH: ${{ github.workspace }}
           DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
           REPO_OWNER: chabdullah7
           REPO_NAME: Sentiment_Analysis
@@ -63,6 +65,7 @@ jobs:
       - name: Promote model to production
         if: success()
         env:
+          PYTHONPATH: ${{ github.workspace }}
           DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
           REPO_OWNER: chabdullah7
           REPO_NAME: Sentiment_Analysis
