@@ -10,3 +10,4 @@ python-dotenv
 boto3
 pyodbc
 dvc[s3]
+prometheus_client
