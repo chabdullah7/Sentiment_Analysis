@@ -12,8 +12,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
       # =========================
-      # Checkout
+      # Checkout code
       # =========================
       - name: Checkout code
         uses: actions/checkout@v3
@@ -32,66 +33,51 @@ jobs:
       - name: Cache pip dependencies
         uses: actions/cache@v3
         with:
-          path: |
-            ~/.cache/pip
-            ~/.local/share/virtualenvs
+          path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
 
       # =========================
-      # Install dependencies (OPTIMIZED)
+      # Install dependencies (clean)
       # =========================
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install --cache-dir ~/.cache/pip -r requirements.txt
+          pip install -r requirements.txt
+          pip install dvc[s3]
 
       # =========================
-      # Install extra tools (ONLY ONCE)
+      # Set environment (IMPORTANT FIX)
       # =========================
-      - name: Install DVC + extras
+      - name: Set environment variables
         run: |
-          pip install dvc dvc[s3]
+          echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+          echo "DAGSHUB_TOKEN=${{ secrets.DAGSHUB_TOKEN }}" >> $GITHUB_ENV
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
+          echo "REPO_OWNER=chabdullah7" >> $GITHUB_ENV
+          echo "REPO_NAME=Sentiment_Analysis" >> $GITHUB_ENV
+          echo "MLFLOW_TRACKING_URI=https://dagshub.com/chabdullah7/Sentiment_Analysis.mlflow" >> $GITHUB_ENV
 
       # =========================
       # Run DVC Pipeline
       # =========================
       - name: Run DVC Pipeline
-        env:
-          PYTHONPATH: ${{ github.workspace }}
-          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          REPO_OWNER: chabdullah7
-          REPO_NAME: Sentiment_Analysis
-          MLFLOW_TRACKING_URI: https://dagshub.com/chabdullah7/Sentiment_Analysis.mlflow
         run: |
           dvc repro
 
       # =========================
-      # Run FastAPI Tests
+      # Run tests (SAFE IMPORT FIX)
       # =========================
       - name: Run FastAPI tests
-        env:
-          PYTHONPATH: ${{ github.workspace }}
-          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
-          REPO_OWNER: chabdullah7
-          REPO_NAME: Sentiment_Analysis
-          MLFLOW_TRACKING_URI: https://dagshub.com/chabdullah7/Sentiment_Analysis.mlflow
         run: |
-          python -m unittest discover -s tests -p "test_fastapi_app.py"
+          python -m unittest discover -s tests -p "*.py"
 
       # =========================
-      # Promote Model
+      # Promote model
       # =========================
       - name: Promote model to production
         if: success()
-        env:
-          PYTHONPATH: ${{ github.workspace }}
-          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
-          REPO_OWNER: chabdullah7
-          REPO_NAME: Sentiment_Analysis
-          MLFLOW_TRACKING_URI: https://dagshub.com/chabdullah7/Sentiment_Analysis.mlflow
         run: |
           python scripts/promote_model.py

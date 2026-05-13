@@ -58,7 +58,7 @@ def normalize_text(text):
 
 
 # =========================
-# ENV CHECK
+# ENV
 # =========================
 
 DAGSHUB_TOKEN = os.getenv("DAGSHUB_TOKEN")
@@ -87,7 +87,7 @@ templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 registry = CollectorRegistry()
 
 # =========================
-# LAZY LOADING (FIXED)
+# LAZY LOADING
 # =========================
 
 model = None
