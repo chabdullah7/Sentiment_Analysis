@@ -25,16 +25,26 @@ jobs:
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
       - name: install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install "dvc[s3]"
+          pip install -e .
 
       - name: run pipeline
         env:
+          PYTHONPATH: ${{ github.workspace }}
+
+          # AWS for DVC S3 remote
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+          # optional (if used in project)
+          SENTIMENT_ANALYSIS: ${{ secrets.SENTIMENT_ANALYSIS }}
+
         run: |
           dvc repro
