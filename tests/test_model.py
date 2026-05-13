@@ -3,7 +3,12 @@ import mlflow
 import os
 import pandas as pd
 import pickle
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score
+)
 
 
 class TestModelLoading(unittest.TestCase):
@@ -16,7 +21,6 @@ class TestModelLoading(unittest.TestCase):
         # =========================
         dagshub_token = os.getenv("DAGSHUB_TOKEN")
         repo_owner = os.getenv("REPO_OWNER")
-        repo_name = os.getenv("REPO_NAME")
         mlflow_uri = os.getenv("MLFLOW_TRACKING_URI")
 
         if not dagshub_token:
@@ -26,7 +30,7 @@ class TestModelLoading(unittest.TestCase):
             raise EnvironmentError("MLFLOW_TRACKING_URI not set")
 
         # =========================
-        # MLflow AUTH
+        # MLFLOW AUTH
         # =========================
         os.environ["MLFLOW_TRACKING_USERNAME"] = repo_owner
         os.environ["MLFLOW_TRACKING_PASSWORD"] = dagshub_token
@@ -34,58 +38,107 @@ class TestModelLoading(unittest.TestCase):
         mlflow.set_tracking_uri(mlflow_uri)
 
         # =========================
-        # LOAD MODEL (PRODUCTION)
+        # LOAD MODEL
         # =========================
         cls.model_name = "my_model"
-        cls.model_version = cls.get_latest_model_version(cls.model_name)
+
+        cls.model_version = cls.get_latest_model_version(
+            cls.model_name
+        )
 
         if not cls.model_version:
-            raise ValueError("No model found in Production")
+            raise ValueError(
+                "No model found in MLflow Registry"
+            )
 
-        cls.model_uri = f"models:/{cls.model_name}/{cls.model_version}"
-        cls.model = mlflow.pyfunc.load_model(cls.model_uri)
+        cls.model_uri = (
+            f"models:/{cls.model_name}/{cls.model_version}"
+        )
+
+        cls.model = mlflow.pyfunc.load_model(
+            cls.model_uri
+        )
 
         # =========================
         # LOAD VECTORIZER
         # =========================
-        cls.vectorizer = pickle.load(open("models/vectorizer.pkl", "rb"))
+        with open("models/vectorizer.pkl", "rb") as f:
+            cls.vectorizer = pickle.load(f)
 
         # =========================
         # LOAD TEST DATA
         # =========================
-        cls.data = pd.read_csv("data/processed/test_bow.csv")
+        cls.data = pd.read_csv(
+            "data/processed/test_bow.csv"
+        )
 
     # =========================
-    # GET LATEST MODEL VERSION
+    # GET MODEL VERSION
     # =========================
     @staticmethod
-    def get_latest_model_version(model_name, stage="Production"):
+    def get_latest_model_version(model_name):
+
         client = mlflow.MlflowClient()
-        versions = client.get_latest_versions(model_name, stages=[stage])
-        return versions[0].version if versions else None
+
+        # Try Production
+        versions = client.get_latest_versions(
+            model_name,
+            stages=["Production"]
+        )
+
+        if versions:
+            return versions[0].version
+
+        # Try Staging
+        versions = client.get_latest_versions(
+            model_name,
+            stages=["Staging"]
+        )
+
+        if versions:
+            return versions[0].version
+
+        # Try latest registered model
+        latest_versions = client.search_model_versions(
+            f"name='{model_name}'"
+        )
+
+        if latest_versions:
+            return latest_versions[-1].version
+
+        return None
 
     # =========================
-    # TEST 1: MODEL LOADED
+    # TEST 1
     # =========================
     def test_model_loaded(self):
+
         self.assertIsNotNone(self.model)
 
     # =========================
-    # TEST 2: SIGNATURE TEST
+    # TEST 2
     # =========================
     def test_signature(self):
 
         text = "this is a test sentence"
 
         X = self.vectorizer.transform([text])
-        input_df = pd.DataFrame(X.toarray())
 
-        prediction = self.model.predict(input_df)
+        input_df = pd.DataFrame(
+            X.toarray()
+        )
 
-        self.assertEqual(input_df.shape[0], len(prediction))
+        prediction = self.model.predict(
+            input_df
+        )
+
+        self.assertEqual(
+            input_df.shape[0],
+            len(prediction)
+        )
 
     # =========================
-    # TEST 3: PERFORMANCE TEST
+    # TEST 3
     # =========================
     def test_performance(self):
 
@@ -105,7 +158,6 @@ class TestModelLoading(unittest.TestCase):
         print("Recall:", rec)
         print("F1:", f1)
 
-        # minimum thresholds
         self.assertGreaterEqual(acc, 0.50)
         self.assertGreaterEqual(f1, 0.50)
 
