@@ -1,65 +1,49 @@
-from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse, Response
-from fastapi.templating import Jinja2Templates
-
-import os
-import pickle
+import numpy as np
 import pandas as pd
-import mlflow
-from prometheus_client import generate_latest, CollectorRegistry, CONTENT_TYPE_LATEST
-
-app = FastAPI()
-templates = Jinja2Templates(directory="fastapi_app/templates")
-
-registry = CollectorRegistry()
-
-# =========================
-# LOAD MODEL + VECTORIZER
-# =========================
-
-model = pickle.load(open("models/model.pkl", "rb"))
-vectorizer = pickle.load(open("models/vectorizer.pkl", "rb"))
+import pickle
+from sklearn.linear_model import LogisticRegression
+import os
+from src.logger import logger
 
 
-# =========================
-# HOME PAGE
-# =========================
-@app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
-    return templates.TemplateResponse(
-        request,
-        "index.html",
-        {"result": None}
+def load_data(file_path: str) -> pd.DataFrame:
+    df = pd.read_csv(file_path)
+    logger.info(f"Data loaded from {file_path}")
+    return df
+
+
+def train_model(X_train, y_train):
+    model = LogisticRegression(
+        solver="liblinear",
+        C=1.0,
+        max_iter=1000
     )
 
-
-# =========================
-# PREDICT
-# =========================
-@app.post("/predict", response_class=HTMLResponse)
-async def predict(request: Request, text: str = Form(...)):
-
-    # transform text using SAME vectorizer
-    X = vectorizer.transform([text])
-
-    # convert to dataframe (safe for sklearn/mlflow)
-    df = pd.DataFrame(X.toarray())
-
-    prediction = model.predict(df)[0]
-
-    return templates.TemplateResponse(
-        request,
-        "index.html",
-        {"result": int(prediction)}
-    )
+    model.fit(X_train, y_train)
+    logger.info("Model training completed")
+    return model
 
 
-# =========================
-# METRICS
-# =========================
-@app.get("/metrics")
-async def metrics():
-    return Response(
-        content=generate_latest(registry),
-        media_type=CONTENT_TYPE_LATEST
-    )
+def save_model(model, path):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+
+    with open(path, "wb") as f:
+        pickle.dump(model, f)
+
+    logger.info(f"Model saved at {path}")
+
+
+def main():
+
+    train_data = load_data("./data/processed/train_bow.csv")
+
+    X_train = train_data.iloc[:, :-1].values
+    y_train = train_data.iloc[:, -1].values
+
+    model = train_model(X_train, y_train)
+
+    save_model(model, "models/model.pkl")
+
+
+if __name__ == "__main__":
+    main()
