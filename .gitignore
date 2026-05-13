@@ -221,5 +221,4 @@ __marimo__/
 env_delta/
 
 local_s3/
-data/
 models/

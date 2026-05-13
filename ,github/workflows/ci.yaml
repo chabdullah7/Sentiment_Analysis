@@ -1,6 +1,11 @@
 name: CI Pipeline
 
-on: push
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
 
 jobs:
   project-testing:
@@ -25,10 +30,11 @@ jobs:
 
       - name: install dependencies
         run: |
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: run pipeline
         # env:
-        #   CAPSTONE_TEST: ${{ secrets.CAPSTONE_TEST }}
+        #   SENTIMENT_ANALYSIS_TEST: ${{ secrets.SENTIMENT_ANALYSIS_TEST }}
         run: |
           dvc repro
