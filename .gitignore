@@ -216,3 +216,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# virtual environment
+env_delta/
+
+local_s3/
+data/
+models/
