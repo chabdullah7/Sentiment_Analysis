@@ -81,41 +81,47 @@ def normalize_text(text):
 
 
 # =========================================================
-# LOCAL MODE (ACTIVE)
+# LOCAL MODE
 # =========================================================
 
-REPO_OWNER = os.getenv("REPO_OWNER")
-REPO_NAME = os.getenv("REPO_NAME")
-MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
-DAGSHUB_TOKEN = os.getenv("DAGSHUB_TOKEN")
-
-if MLFLOW_TRACKING_URI:
-    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-
-if REPO_OWNER and REPO_NAME:
-    dagshub.init(
-        repo_owner=REPO_OWNER,
-        repo_name=REPO_NAME,
-        mlflow=True
-    )
-
-
-# =========================================================
-# PRODUCTION / REMOTE MODE (COMMENTED - KEEP AS YOU WANTED)
-# =========================================================
-
-# DAGSHUB_TOKEN = os.getenv("DAGSHUB_TOKEN")
 # REPO_OWNER = os.getenv("REPO_OWNER")
 # REPO_NAME = os.getenv("REPO_NAME")
 # MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
+# DAGSHUB_TOKEN = os.getenv("DAGSHUB_TOKEN")
 
-# if not DAGSHUB_TOKEN:
-#     raise EnvironmentError("DAGSHUB_TOKEN environment variable is not set")
+# if MLFLOW_TRACKING_URI:
+#     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
-# os.environ["MLFLOW_TRACKING_USERNAME"] = DAGSHUB_TOKEN
-# os.environ["MLFLOW_TRACKING_PASSWORD"] = DAGSHUB_TOKEN
+# if REPO_OWNER and REPO_NAME:
+#     dagshub.init(
+#         repo_owner=REPO_OWNER,
+#         repo_name=REPO_NAME,
+#         mlflow=True
+#     )
 
-# mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+
+# =========================================================
+# PRODUCTION / REMOTE MODe
+# =========================================================
+
+DAGSHUB_TOKEN = os.getenv("DAGSHUB_TOKEN")
+REPO_OWNER = os.getenv("REPO_OWNER")
+REPO_NAME = os.getenv("REPO_NAME")
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
+
+if not DAGSHUB_TOKEN:
+    raise EnvironmentError("DAGSHUB_TOKEN is not set")
+
+if not REPO_OWNER or not REPO_NAME:
+    raise EnvironmentError("REPO_OWNER or REPO_NAME is not set")
+
+if not MLFLOW_TRACKING_URI:
+    raise EnvironmentError("MLFLOW_TRACKING_URI is not set")
+
+os.environ["MLFLOW_TRACKING_USERNAME"] = REPO_OWNER
+os.environ["MLFLOW_TRACKING_PASSWORD"] = DAGSHUB_TOKEN
+
+mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
 
 # =========================================================
@@ -189,7 +195,7 @@ model = mlflow.pyfunc.load_model(model_uri)
 
 
 # =========================================================
-# FIXED VECTORIZER PATH (MAIN BUG FIX)
+# FIXED VECTORIZER PATH
 # =========================================================
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

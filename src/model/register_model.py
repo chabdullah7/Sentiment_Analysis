@@ -18,35 +18,41 @@ load_dotenv()
 # LOCAL MODE
 # =========================================================
 
-REPO_OWNER = os.getenv("REPO_OWNER")
-REPO_NAME = os.getenv("REPO_NAME")
-MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
+# REPO_OWNER = os.getenv("REPO_OWNER")
+# REPO_NAME = os.getenv("REPO_NAME")
+# MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
 
-mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+# mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
-dagshub.init(
-    repo_owner=REPO_OWNER,
-    repo_name=REPO_NAME,
-    mlflow=True
-)
+# dagshub.init(
+#     repo_owner=REPO_OWNER,
+#     repo_name=REPO_NAME,
+#     mlflow=True
+# )
 
 
 # =========================================================
 # PRODUCTION MODE
 # =========================================================
-"""
-dagshub_token = os.getenv("CAPSTONE_TEST")
+
+dagshub_token = os.getenv("DAGSHUB_TOKEN")
+REPO_OWNER = os.getenv("REPO_OWNER")
+REPO_NAME = os.getenv("REPO_NAME")
 
 if not dagshub_token:
-    raise EnvironmentError("CAPSTONE_TEST is not set")
+    raise EnvironmentError("DAGSHUB_TOKEN is not set")
 
-os.environ["MLFLOW_TRACKING_USERNAME"] = dagshub_token
+if not REPO_OWNER or not REPO_NAME:
+    raise EnvironmentError("REPO_OWNER or REPO_NAME is missing")
+
+# Authentication
+os.environ["MLFLOW_TRACKING_USERNAME"] = REPO_OWNER
 os.environ["MLFLOW_TRACKING_PASSWORD"] = dagshub_token
 
 mlflow.set_tracking_uri(
     f"https://dagshub.com/{REPO_OWNER}/{REPO_NAME}.mlflow"
 )
-"""
+
 
 
 # =========================================================

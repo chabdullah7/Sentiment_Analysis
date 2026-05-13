@@ -12,10 +12,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: checkout code
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: setup python
+      - name: Setup Python
         uses: actions/setup-python@v2
         with:
           python-version: '3.10'
@@ -28,23 +28,44 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      - name: install dependencies
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install "dvc[s3]"
-          pip install -e .
+          pip install dvc dvc[s3]
 
-      - name: run pipeline
+      # =========================
+      # Run DVC Pipeline
+      # =========================
+      - name: Run DVC Pipeline
         env:
-          PYTHONPATH: ${{ github.workspace }}
-
-          # AWS for DVC S3 remote
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-          # optional (if used in project)
-          SENTIMENT_ANALYSIS: ${{ secrets.SENTIMENT_ANALYSIS }}
-
         run: |
           dvc repro
+
+      # =========================
+      # Run FastAPI Tests
+      # =========================
+      - name: Run FastAPI tests
+        env:
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+          REPO_OWNER: chabdullah7
+          REPO_NAME: Sentiment_Analysis
+          MLFLOW_TRACKING_URI: https://dagshub.com/chabdullah7/Sentiment_Analysis.mlflow
+        run: |
+          python -m unittest tests/test_fastapi_app.py
+
+      # =========================
+      # Promote Model
+      # =========================
+      - name: Promote model to production
+        if: success()
+        env:
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+          REPO_OWNER: chabdullah7
+          REPO_NAME: Sentiment_Analysis
+          MLFLOW_TRACKING_URI: https://dagshub.com/chabdullah7/Sentiment_Analysis.mlflow
+        run: |
+          python scripts/promote_model.py
