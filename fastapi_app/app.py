@@ -6,8 +6,6 @@ import mlflow
 import pickle
 import os
 import pandas as pd
-import time
-import string
 import re
 import warnings
 
@@ -68,24 +66,28 @@ REPO_OWNER = os.getenv("REPO_OWNER")
 REPO_NAME = os.getenv("REPO_NAME")
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
 
-if not DAGSHUB_TOKEN or not REPO_OWNER or not REPO_NAME or not MLFLOW_TRACKING_URI:
+if not all([DAGSHUB_TOKEN, REPO_OWNER, REPO_NAME, MLFLOW_TRACKING_URI]):
     raise EnvironmentError("Missing environment variables")
 
 os.environ["MLFLOW_TRACKING_USERNAME"] = REPO_OWNER
 os.environ["MLFLOW_TRACKING_PASSWORD"] = DAGSHUB_TOKEN
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
+
 # =========================
 # FASTAPI APP
 # =========================
 
 app = FastAPI()
-templates = Jinja2Templates(directory="templates")
+
+# ✔ FIXED TEMPLATE PATH (IMPORTANT)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 registry = CollectorRegistry()
 
 # =========================
-# LAZY MODEL LOADING (IMPORTANT FIX)
+# LAZY LOADING (FIXED)
 # =========================
 
 model = None
