@@ -5,30 +5,32 @@ on:
     branches:
       - main
       - master
+
   pull_request:
 
 jobs:
   project-testing:
+
     runs-on: ubuntu-latest
 
     steps:
 
       # =========================
-      # Checkout code
+      # CHECKOUT CODE
       # =========================
       - name: Checkout code
         uses: actions/checkout@v3
 
       # =========================
-      # Setup Python
+      # SETUP PYTHON
       # =========================
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: "3.10"
 
       # =========================
-      # Cache pip
+      # CACHE PIP
       # =========================
       - name: Cache pip dependencies
         uses: actions/cache@v3
@@ -37,7 +39,7 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
 
       # =========================
-      # Install dependencies (FIXED)
+      # INSTALL DEPENDENCIES
       # =========================
       - name: Install dependencies
         run: |
@@ -47,36 +49,49 @@ jobs:
           pip install "pathspec<0.12.0"
 
       # =========================
-      # Set environment variables
+      # CONFIGURE AWS CREDENTIALS
+      # =========================
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # =========================
+      # SET ENV VARIABLES
       # =========================
       - name: Set environment variables
         run: |
           echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
           echo "DAGSHUB_TOKEN=${{ secrets.DAGSHUB_TOKEN }}" >> $GITHUB_ENV
-          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
-          echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> $GITHUB_ENV
-          echo "AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}" >> $GITHUB_ENV
           echo "REPO_OWNER=chabdullah7" >> $GITHUB_ENV
           echo "REPO_NAME=Sentiment_Analysis" >> $GITHUB_ENV
           echo "MLFLOW_TRACKING_URI=https://dagshub.com/chabdullah7/Sentiment_Analysis.mlflow" >> $GITHUB_ENV
 
       # =========================
-      # Run DVC Pipeline
+      # DEBUG AWS AUTH
+      # =========================
+      - name: Verify AWS Identity
+        run: |
+          aws sts get-caller-identity
+
+      # =========================
+      # RUN DVC PIPELINE
       # =========================
       - name: Run DVC Pipeline
         run: |
           dvc repro
 
       # =========================
-      # Run tests
+      # RUN TESTS
       # =========================
       - name: Run tests
         run: |
           python -m unittest discover -s tests -p "test_*.py"
 
       # =========================
-      # Promote model
+      # PROMOTE MODEL
       # =========================
       - name: Promote model to production
         if: success()
@@ -101,7 +116,7 @@ jobs:
           docker build -t ${{ secrets.ECR_REPOSITORY }}:latest .
 
       # =========================
-      # TAG IMAGE FOR ECR
+      # TAG DOCKER IMAGE
       # =========================
       - name: Tag Docker image
         run: |
@@ -113,7 +128,8 @@ jobs:
       # =========================
       - name: Push Docker image to ECR
         run: |
-          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY }}:latest
+          docker push \
+          ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY }}:latest
 
       # =========================
       # VERIFY DOCKER
