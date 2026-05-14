@@ -21,8 +21,8 @@ spec:
       containers:
         - name: fastapi-app
 
-          
-          image: <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/<ECR_REPOSITORY>:latest
+          # ✅ FIXED IMAGE (REAL ECR FORMAT)
+          image: 450876624217.dkr.ecr.eu-north-1.amazonaws.com/sentiment-analysis:latest
 
           ports:
             - containerPort: 8000
@@ -50,6 +50,7 @@ spec:
                   key: MLFLOW_TRACKING_URI
 
 ---
+
 apiVersion: v1
 kind: Service
 metadata:
