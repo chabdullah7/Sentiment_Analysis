@@ -1,29 +1,27 @@
 # =========================
-# CORE APP (FASTAPI)
+# FASTAPI CORE
 # =========================
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
 python-multipart==0.0.9
 
 # =========================
-# DATA / ML
+# ML INFERENCE ONLY
 # =========================
 numpy==1.26.4
 pandas==2.2.3
 scikit-learn==1.5.2
 scipy==1.11.4
-xgboost==2.0.3
 
 # =========================
-# NLP
+# NLP (if used in preprocessing)
 # =========================
 nltk==3.9.1
 
 # =========================
-# EXPERIMENT TRACKING
+# MODEL TRACKING (optional runtime)
 # =========================
 mlflow==2.19.0
-dagshub==0.4.2
 
 # =========================
 # MONITORING
@@ -31,17 +29,6 @@ dagshub==0.4.2
 prometheus_client==0.20.0
 
 # =========================
-# ENV HANDLING
+# ENV CONFIG
 # =========================
 python-dotenv==1.0.1
-
-# =========================
-# CLOUD / STORAGE
-# =========================
-boto3==1.34.0
-dvc[s3]==3.48.4
-
-# =========================
-# OPTIONAL (DATABASE)
-# =========================
-pyodbc==5.1.0
