@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fastapi-app
+  labels:
+    app: fastapi-app
+
+spec:
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app: fastapi-app
+
+  template:
+    metadata:
+      labels:
+        app: fastapi-app
+
+    spec:
+      containers:
+        - name: fastapi-app
+
+          
+          image: <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/<ECR_REPOSITORY>:latest
+
+          ports:
+            - containerPort: 8000
+
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+
+            limits:
+              memory: "512Mi"
+              cpu: "1"
+
+          env:
+            - name: DAGSHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: DAGSHUB_TOKEN
+
+            - name: MLFLOW_TRACKING_URI
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: MLFLOW_TRACKING_URI
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fastapi-app-service
+
+spec:
+  type: LoadBalancer
+
+  selector:
+    app: fastapi-app
+
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000

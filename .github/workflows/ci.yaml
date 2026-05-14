@@ -1,4 +1,4 @@
-name: CI Pipeline
+name: MLOps Pipeline (FastAPI + EKS + ECR)
 
 on:
   push:
@@ -9,20 +9,20 @@ on:
   pull_request:
 
 jobs:
-  project-testing:
+  pipeline:
 
     runs-on: ubuntu-latest
 
     steps:
 
       # =========================
-      # CHECKOUT CODE
+      # CODE CHECKOUT
       # =========================
       - name: Checkout code
         uses: actions/checkout@v3
 
       # =========================
-      # SETUP PYTHON
+      # PYTHON SETUP
       # =========================
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -32,7 +32,7 @@ jobs:
       # =========================
       # CACHE PIP
       # =========================
-      - name: Cache pip dependencies
+      - name: Cache pip
         uses: actions/cache@v3
         with:
           path: ~/.cache/pip
@@ -49,7 +49,7 @@ jobs:
           pip install "pathspec<0.12.0"
 
       # =========================
-      # CONFIGURE AWS CREDENTIALS
+      # AWS AUTH
       # =========================
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -59,7 +59,13 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       # =========================
-      # SET ENV VARIABLES
+      # VERIFY AWS
+      # =========================
+      - name: Verify AWS identity
+        run: aws sts get-caller-identity
+
+      # =========================
+      # ENV VARIABLES
       # =========================
       - name: Set environment variables
         run: |
@@ -70,36 +76,26 @@ jobs:
           echo "MLFLOW_TRACKING_URI=https://dagshub.com/chabdullah7/Sentiment_Analysis.mlflow" >> $GITHUB_ENV
 
       # =========================
-      # DEBUG AWS AUTH
+      # DVC PIPELINE
       # =========================
-      - name: Verify AWS Identity
-        run: |
-          aws sts get-caller-identity
+      - name: Run DVC pipeline
+        run: dvc repro
 
       # =========================
-      # RUN DVC PIPELINE
-      # =========================
-      - name: Run DVC Pipeline
-        run: |
-          dvc repro
-
-      # =========================
-      # RUN TESTS
+      # TESTS
       # =========================
       - name: Run tests
-        run: |
-          python -m unittest discover -s tests -p "test_*.py"
+        run: python -m unittest discover -s tests -p "test_*.py"
 
       # =========================
-      # PROMOTE MODEL
+      # MODEL PROMOTION
       # =========================
-      - name: Promote model to production
+      - name: Promote model
         if: success()
-        run: |
-          python scripts/promote_model.py
+        run: python scripts/promote_model.py
 
       # =========================
-      # LOGIN TO AWS ECR
+      # LOGIN TO ECR
       # =========================
       - name: Login to AWS ECR
         if: success()
@@ -109,14 +105,14 @@ jobs:
           ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
 
       # =========================
-      # BUILD DOCKER IMAGE
+      # BUILD IMAGE
       # =========================
       - name: Build Docker image
         run: |
           docker build -t ${{ secrets.ECR_REPOSITORY }}:latest .
 
       # =========================
-      # TAG DOCKER IMAGE
+      # TAG IMAGE
       # =========================
       - name: Tag Docker image
         run: |
@@ -124,15 +120,57 @@ jobs:
           ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY }}:latest
 
       # =========================
-      # PUSH IMAGE TO ECR
+      # PUSH IMAGE
       # =========================
-      - name: Push Docker image to ECR
+      - name: Push Docker image
         run: |
-          docker push \
-          ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY }}:latest
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY }}:latest
 
       # =========================
-      # VERIFY DOCKER
+      # SETUP KUBECTL
       # =========================
-      - name: Check Docker Authentication
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: "latest"
+
+      # =========================
+      # CONNECT EKS
+      # =========================
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --region ${{ secrets.AWS_REGION }} \
+            --name fastapi-app-cluster
+
+      # =========================
+      # VERIFY CLUSTER
+      # =========================
+      - name: Verify cluster
+        run: |
+          kubectl get nodes
+          kubectl get pods
+
+      # =========================
+      # KUBERNETES SECRET
+      # =========================
+      - name: Create Kubernetes Secret
+        run: |
+          kubectl create secret generic app-secret \
+            --from-literal=DAGSHUB_TOKEN=${{ secrets.DAGSHUB_TOKEN }} \
+            --from-literal=MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      # =========================
+      # DEPLOY TO EKS
+      # =========================
+      - name: Deploy to EKS
+        run: |
+          kubectl apply -f deployment.yaml
+          kubectl get svc
+
+      # =========================
+      # FINAL CHECK
+      # =========================
+      - name: Verify Docker
         run: docker info

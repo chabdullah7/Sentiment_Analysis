@@ -37,10 +37,10 @@ EXPOSE 8000
 # =========================
 # DEFAULT (LOCAL DEV)
 # =========================
-CMD ["uvicorn", "fastapi_app.app:app", "--host", "0.0.0.0", "--port", "8000"]
+# CMD ["uvicorn", "fastapi_app.app:app", "--host", "0.0.0.0", "--port", "8000"]
 
 # =========================
 # PRODUCTION (use in deploy)
 # =========================
-# CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", \
-#      "fastapi_app.app:app", "--bind", "0.0.0.0:8000", "--timeout", "120"]
+CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", \
+     "fastapi_app.app:app", "--bind", "0.0.0.0:8000", "--timeout", "120"]
